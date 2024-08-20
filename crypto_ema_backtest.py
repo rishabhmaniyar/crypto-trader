@@ -1,5 +1,5 @@
 import ssl
-
+from datetime import datetime, timedelta
 import ccxt
 import pandas as pd
 import numpy as np
@@ -22,10 +22,18 @@ exchange = ccxt.binance({
 
 # Fetching 15-minute historical data
 def fetch_ohlcv(symbol):
-    ohlcv = exchange.fetch_ohlcv(symbol, timeframe='15m')
-    df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-    return df
+    now = datetime.utcnow()
+    since = exchange.parse8601((now - timedelta(days=180)).isoformat())
+
+    all_data = []
+    while since < exchange.parse8601(datetime.utcnow().isoformat()):
+        data = exchange.fetch_ohlcv(symbol, "15m", since=since, limit=1000)
+        if len(data) == 0:
+            break
+        all_data += data
+        since = data[-1][0] + 1  # Move to the next set of data
+        time.sleep(exchange.rateLimit / 1000)  # Respect rate limit
+    return all_data
 
 
 # Calculate the 5-period EMA
