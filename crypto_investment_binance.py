@@ -11,11 +11,11 @@ import json
 from datetime import datetime, timedelta
 
 # Binance API credentials
-# API_KEY = 'jbzSqtPRcAk8CPb4u142bN6lBwu47cqLxFxzwVmJ086FaoWvjHW0gmWQzajjYFlc'
-# API_SECRET = 'pKwacZUGBtHiUyaOGFBmq7CQLc4zJrkCITz2ZtZO2vqaswWqWdzGuJ2gzGi6CvzT'
+API_KEY = 'jbzSqtPRcAk8CPb4u142bN6lBwu47cqLxFxzwVmJ086FaoWvjHW0gmWQzajjYFlc'
+API_SECRET = 'pKwacZUGBtHiUyaOGFBmq7CQLc4zJrkCITz2ZtZO2vqaswWqWdzGuJ2gzGi6CvzT'
 
-API_KEY = 'aSm4URx4S5MCIhnlRGmsOLs0bsMDsmuLMJPhMnlkOO0yg9gqFwHAXFIVbQR1MBLN'
-API_SECRET = 'zE1WCQ4uSbhfkJBaTrNRtCoJPjUy3Ap0G0ek5Mxlm1d0rgAmllobBrTvK433w4aT'
+# API_KEY = 'aSm4URx4S5MCIhnlRGmsOLs0bsMDsmuLMJPhMnlkOO0yg9gqFwHAXFIVbQR1MBLN'
+# API_SECRET = 'zE1WCQ4uSbhfkJBaTrNRtCoJPjUy3Ap0G0ek5Mxlm1d0rgAmllobBrTvK433w4aT'
 
 # Initialize Binance client
 exchange = ccxt.binance({
