@@ -5,13 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="5f1bd556-85b4-445e-ba7a-c6b04110677f" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/csv-editor.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/5ema-backtest-crypto.ipynb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/crypto_ema_backtest.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/crypto_investment_binance.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/temp-backtest.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto_ema_strategy.py" beforeDir="false" afterPath="$PROJECT_DIR$/crypto_ema_strategy.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crypto_investment_binance.py" beforeDir="false" afterPath="$PROJECT_DIR$/crypto_investment_binance.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -37,19 +32,19 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.crypto_ema_backtest.executor": "Run",
-    "Python.crypto_ema_strategy.executor": "Run",
-    "Python.main.executor": "Run",
-    "Python.temp-backtest.executor": "Run",
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "git-widget-placeholder": "master",
-    "last_opened_file_path": "/Users/rishabhmaniyar/Desktop/TradeStrat/crypto_intraday"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.crypto_ema_backtest.executor&quot;: &quot;Run&quot;,
+    &quot;Python.crypto_ema_strategy.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;Python.temp-backtest.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/rishabhmaniyar/Desktop/TradeStrat/crypto_intraday&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
@@ -102,7 +97,7 @@
       <breakpoints>
         <line-breakpoint enabled="true" log-message="true" suspend="NONE" type="python-line">
           <url>file://$PROJECT_DIR$/crypto_investment_binance.py</url>
-          <line>38</line>
+          <line>45</line>
           <option name="timeStamp" value="1" />
         </line-breakpoint>
       </breakpoints>
