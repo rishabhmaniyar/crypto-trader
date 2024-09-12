@@ -43,20 +43,22 @@ def calculate_ema(df):
 
 
 # Place a buy order
-def place_buy_order(symbol, inr_amount=500):
+def place_buy_order(symbolTop, inr_amount=500):
     # Fetch the current price of the symbol
-    print("place_buy_order :- ", symbol)
-    ticker = exchange.fetch_ticker(symbol)
+    print("place_buy_order :- ", symbolTop)
+    ticker = exchange.fetch_ticker(symbolTop)
     current_price = ticker['last']
 
     # Calculate the amount to buy so that the total cost is near ₹500
     amount_to_buy = inr_amount / (current_price * 83)
 
-    print(f"Buy Order placed for {symbol}")
+    print(f"Buy Order placed for {symbolTop}")
     print(f"Amount: {amount_to_buy}, Total Cost: {amount_to_buy * current_price} INR")
 
     # Place a market buy order with the calculated amount
-    order = exchange.create_market_buy_order(symbol, amount_to_buy)
+    order = exchange.create_market_buy_order(symbolTop, amount_to_buy)
+    print("ORDER -> ", order)
+    return order
 
 
 # Place a sell order
@@ -93,13 +95,18 @@ def addTwentyDmaData(df):
         if count <= 100:
             symbol = row['displaySymbol'].upper()
             ticker = symbol + "/USDT"
+            if ticker=="WETH/USDT":
+                print("check things here")
             try:
                 ltp = float(exchange.fetch_ticker(ticker).get("last"))
                 threeMonthHistoricalData = fetch_ohlcv(ticker)
                 (latest20Dma, threeMonthClose) = get20DmaValueForCrypto(threeMonthHistoricalData)
                 count += 1
             except Exception as e:
-                print("Error during ->", symbol,traceback.print_exception(e))
+                latest20Dma=None
+                ltp =None
+                threeMonthClose=None
+                print("Error during ->", symbol, traceback.print_exception(e))
 
             print(symbol, latest20Dma, ltp, threeMonthClose)
 
@@ -114,6 +121,8 @@ def addTwentyDmaData(df):
                 df.at[index, '20DMA'] = 0.0
                 df.at[index, 'CMP-20DMA'] = 0.0
                 df.at[index, 'CMP-20DMA_%'] = 0.0
+                df.at[index, '3m_change%'] = 0.0
+
         else:
             break
             # df = df.dropna(subset=['20DMA'])
@@ -126,13 +135,12 @@ def addTwentyDmaData(df):
 def findTradableEtf(df):
     newEtfs = df.loc[df['3m_change%'] > 10]
     newEtfs = newEtfs.sort_values('CMP-20DMA_%', ascending=True)
+    print("Saving to new file")
     newEtfs.to_csv("binance-etf.csv")
     return newEtfs
 
 
 def main():
-    symbol = 'BTC/USDT'  # Change this to your desired trading pair
-    amount = 0.001  # Change this to your desired trade amount
     # df = fetch_ohlcv(symbol)
     # print(df)
     filteredCryptos = getTopCryptosFromWeb()
@@ -144,7 +152,8 @@ def main():
     result = findTradableEtf(newDf)
     print(result)
     amount = 500
-    place_buy_order(result.head(1)['ticker'].values[0], amount)
+    order = place_buy_order(result.head(1)['ticker'].values[0], amount)
+    print(order)
 
 
 if __name__ == "__main__":
