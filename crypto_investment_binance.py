@@ -69,7 +69,7 @@ def place_sell_order(symbol, amount):
 
 # Main function to start the process
 def getTopCryptosFromWeb():
-    url = "https://fda.forbes.com/v2/tradedAssets?limit=300&pageNum=1&sortBy=marketCap&direction=desc&query=&category=ft"
+    url = "https://fda.forbes.com/v2/tradedAssets?limit=100&pageNum=1&sortBy=marketCap&direction=desc&query=&category=ft"
     response = requests.get(url)
     jsonResponse = json.loads(response.content)
     return jsonResponse["assets"]
@@ -95,17 +95,15 @@ def addTwentyDmaData(df):
         if count <= 100:
             symbol = row['displaySymbol'].upper()
             ticker = symbol + "/USDT"
-            if ticker=="WETH/USDT":
-                print("check things here")
             try:
                 ltp = float(exchange.fetch_ticker(ticker).get("last"))
                 threeMonthHistoricalData = fetch_ohlcv(ticker)
                 (latest20Dma, threeMonthClose) = get20DmaValueForCrypto(threeMonthHistoricalData)
                 count += 1
             except Exception as e:
-                latest20Dma=None
-                ltp =None
-                threeMonthClose=None
+                latest20Dma = None
+                ltp = None
+                threeMonthClose = None
                 print("Error during ->", symbol, traceback.print_exception(e))
 
             print(symbol, latest20Dma, ltp, threeMonthClose)
