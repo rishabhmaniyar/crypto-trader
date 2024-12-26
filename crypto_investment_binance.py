@@ -279,18 +279,18 @@ def check_and_square_off_positions():
 # Updated main function
 def main():
     # Existing logic
-    # filteredCryptos = getTopCryptosFromWeb()
-    # df = pd.DataFrame(filteredCryptos)
-    # print(df)
-    # newDf = addTwentyDmaData(df)
-    # print(newDf)
-    # newDf.to_csv("all-crypto.csv")
-    # result = findTradableEtf(newDf)
-    # print(result)
-    #
-    # amount = 500
-    # order = place_buy_order(result.head(1)['ticker'].values[0], amount)
-    # print(order)
+    filteredCryptos = getTopCryptosFromWeb()
+    df = pd.DataFrame(filteredCryptos)
+    print(df)
+    newDf = addTwentyDmaData(df)
+    print(newDf)
+    newDf.to_csv("all-crypto.csv")
+    result = findTradableEtf(newDf)
+    print(result)
+
+    amount = 500
+    order = place_buy_order(result.head(1)['ticker'].values[0], amount)
+    print(order)
 
     # New functionality: check and square off positions
     check_and_square_off_positions()
