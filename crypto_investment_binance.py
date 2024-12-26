@@ -1,6 +1,5 @@
 import ssl
 import traceback
-from decimal import Decimal, getcontext
 
 import ccxt
 import pandas as pd
@@ -15,7 +14,6 @@ from datetime import datetime, timedelta
 API_KEY = 'jbzSqtPRcAk8CPb4u142bN6lBwu47cqLxFxzwVmJ086FaoWvjHW0gmWQzajjYFlc'
 API_SECRET = 'pKwacZUGBtHiUyaOGFBmq7CQLc4zJrkCITz2ZtZO2vqaswWqWdzGuJ2gzGi6CvzT'
 
-getcontext().prec = 6
 # API_KEY = 'aSm4URx4S5MCIhnlRGmsOLs0bsMDsmuLMJPhMnlkOO0yg9gqFwHAXFIVbQR1MBLN'
 # API_SECRET = 'zE1WCQ4uSbhfkJBaTrNRtCoJPjUy3Ap0G0ek5Mxlm1d0rgAmllobBrTvK433w4aT'
 
@@ -201,58 +199,53 @@ def calculate_returns(open_positions):
 
 
 # Square off positions with returns greater than 15%
+def square_off_position(asset, total_amount):
+    try:
+        order = exchange.create_market_sell_order(asset + "/USDT", total_amount)
+        print(f"Square-off order placed for {asset}: {order}")
+    except Exception as e:
+        print(f"Error squaring off position for {asset}: {e}")
+        traceback.print_exc()
+
+
 def calculate_returns_from_trade_history(asset, current_price):
     try:
-        trade_history = exchange.fetch_my_trades(symbol=asset + "/USDT")
+        # Fetch trade history for the given asset
+        trades = exchange.fetch_my_trades(asset + "/USDT")
 
-        # Convert all float values to Decimal for consistent calculations
-        current_price = Decimal(current_price)
+        # Calculate total cost and total amount
+        total_cost = 0.0
+        total_amount = 0.0
 
-        # Calculate average price (purchase price)
-        total_cost = Decimal(0)
-        total_amount = Decimal(0)
-        for trade in trade_history:
-            if trade['side'] == 'buy':  # Only consider 'buy' trades
-                total_cost += Decimal(str(trade['price'])) * Decimal(str(trade['amount']))
-                total_amount += Decimal(str(trade['amount']))
+        for trade in trades:
+            total_cost += trade['amount'] * trade['price']  # Amount * Price
+            total_amount += trade['amount']  # Sum up all amounts traded
 
         if total_amount == 0:
-            print(f"No buy trades found for {asset}")
+            print(f"No trade history available for {asset}")
             return None
 
+        # Calculate weighted average price
         average_price = total_cost / total_amount
-        total_cost = round(total_cost, 6)
-        average_price = round(average_price, 6)
 
-        # Current value of the asset
-        current_value = current_price * total_amount
-        current_value = round(current_value, 6)
+        # Calculate current value
+        current_value = total_amount * current_price
 
-        # Calculate the returns
-        returns_percentage = ((current_value - total_cost) / total_cost) * 100
-        returns_percentage = round(returns_percentage, 6)
+        # Calculate returns
+        returns = ((current_value - total_cost) / total_cost) * 100
 
         return {
             'asset': asset,
             'average_price': average_price,
-            'total_amount': round(total_amount, 6),
+            'total_amount': total_amount,
             'total_cost': total_cost,
             'current_value': current_value,
-            'returns_percentage': returns_percentage
+            'returns_percentage': returns
         }
     except Exception as e:
         print(f"Error calculating returns for {asset}: {e}")
+        traceback.print_exc()
         return None
-
-
-# Function to square off the position
-def square_off_position(symbol, amount):
-    try:
-        print(f"Placing square-off order for {symbol} amount {amount}")
-        order = exchange.create_market_sell_order(symbol + "/USDT", amount)
-        print(f"Square-off order placed for {symbol}: {order}")
-    except Exception as e:
-        print(f"Error placing square-off order for {symbol}: {e}")
 
 
 def check_and_square_off_positions():
@@ -272,7 +265,7 @@ def check_and_square_off_positions():
                     print(f"Returns (%): {result['returns_percentage']}%")
 
                     # Square off if returns > 15%
-                    if result['returns_percentage'] > 15:
+                    if result['returns_percentage'] > 5:
                         print(f"Square-off triggered for {asset}")
                         square_off_position(asset, result['total_amount'])
                     else:
