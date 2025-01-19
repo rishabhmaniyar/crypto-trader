@@ -137,6 +137,7 @@ def findTradableEtf(df):
     newEtfs.to_csv("binance-etf.csv")
     return newEtfs
 
+
 # Fetch open positions or holdings
 def fetch_open_positions():
     try:
@@ -155,6 +156,7 @@ def fetch_open_positions():
         print("Error fetching open positions:", traceback.print_exception(e))
         return []
 
+
 # Fetch the current price of a coin
 def fetch_current_price(symbol):
     try:
@@ -163,6 +165,7 @@ def fetch_current_price(symbol):
     except Exception as e:
         print(f"Error fetching price for {symbol}: {e}")
         return None
+
 
 # Calculate returns for each position
 def calculate_returns(open_positions):
@@ -201,8 +204,64 @@ def calculate_returns(open_positions):
 # Square off positions with returns greater than 15%
 def square_off_position(asset, total_amount):
     try:
-        order = exchange.create_market_sell_order(asset + "/USDT", total_amount)
-        print(f"Square-off order placed for {asset}: {order}")
+        # Fetch the latest balance and market data
+        balance = exchange.fetch_balance()
+        available_balance = balance['free'].get(asset, 0)
+
+        # Load market data
+        markets = exchange.load_markets()
+        market_data = markets[asset + "/USDT"]
+        amount_precision = int(market_data['precision']['amount'])
+        price_precision = int(market_data['precision']['price'])
+        min_notional = market_data['limits']['cost']['min']
+
+        total_amount = min(total_amount, available_balance)
+        total_amount_rounded = round(total_amount, amount_precision)
+
+        current_price = fetch_current_price(asset + "/USDT")
+        if not current_price:
+            print(f"Could not fetch current price for {asset}. No action taken.")
+            return
+
+        # Calculate the notional value
+        notional_value = current_price * total_amount
+
+        # Ensure the notional value meets the minimum requirement
+        if notional_value < min_notional:
+            adjusted_amount = round(min_notional / current_price, amount_precision)
+            if adjusted_amount <= available_balance:
+                print(
+                    f"Adjusting sell amount for {asset} to meet minimum notional value: "
+                    f"Requested={total_amount}, Adjusted={adjusted_amount}"
+                )
+                total_amount = adjusted_amount
+            else:
+                print(
+                    f"Cannot adjust sell amount for {asset}. Insufficient balance. "
+                    f"Available={available_balance}, Required for Min Notional={adjusted_amount}"
+                )
+                return
+
+        # Create a limit sell order slightly below the current price (0.5% below)
+        limit_price = round(current_price * 0.995, price_precision)
+
+        # Check the adjusted notional value before placing the order
+        if total_amount * limit_price >= min_notional:
+            print(
+                f"Placing limit sell order for {asset}: Amount={total_amount}, Price={limit_price}"
+            )
+            order = exchange.create_limit_sell_order(
+                asset + "/USDT", total_amount, limit_price
+            )
+            print(f"Square-off order placed for {asset}: {order}")
+        else:
+            print(
+                f"Adjusted order notional value still too low for {asset}: "
+                f"{total_amount * limit_price} < {min_notional}. No action taken."
+            )
+
+    except ccxt.InsufficientFunds as e:
+        print(f"Insufficient funds for {asset}: {e}")
     except Exception as e:
         print(f"Error squaring off position for {asset}: {e}")
         traceback.print_exc()
@@ -264,7 +323,7 @@ def check_and_square_off_positions():
                     print(f"Current Value: {result['current_value']}")
                     print(f"Returns (%): {result['returns_percentage']}%")
 
-                    # Square off if returns > 15%
+                    # Square off if returns > 5%
                     if result['returns_percentage'] > 5:
                         print(f"Square-off triggered for {asset}")
                         square_off_position(asset, result['total_amount'])
@@ -288,13 +347,15 @@ def main():
     result = findTradableEtf(newDf)
     print(result)
 
+    try:
+        check_and_square_off_positions()
+    except Exception as e:
+        print("Something went wrong while selling due to --", e)
+
     amount = 500
     order = place_buy_order(result.head(1)['ticker'].values[0], amount)
     print(order)
 
-    # New functionality: check and square off positions
-    check_and_square_off_positions()
 
 if __name__ == "__main__":
     main()
-
