@@ -204,23 +204,29 @@ def calculate_returns(open_positions):
 # Square off positions with returns greater than 15%
 def square_off_position(asset, total_amount):
     try:
-        # Fetch the latest balance and market data
+        # Fetch the latest balance for the asset
         balance = exchange.fetch_balance()
         available_balance = balance['free'].get(asset, 0)
 
-        # Load market data
+        if available_balance <= 0:
+            print(f"No available balance for {asset}. Skipping square-off.")
+            return
+
+        # Load market data for precision and limits
         markets = exchange.load_markets()
         market_data = markets[asset + "/USDT"]
         amount_precision = int(market_data['precision']['amount'])
         price_precision = int(market_data['precision']['price'])
-        min_notional = market_data['limits']['cost']['min']
+        min_notional = float(market_data['limits']['cost']['min'])
 
+        # Use the smaller of total_amount and available_balance
         total_amount = min(total_amount, available_balance)
         total_amount_rounded = round(total_amount, amount_precision)
 
+        # Fetch the current price
         current_price = fetch_current_price(asset + "/USDT")
         if not current_price:
-            print(f"Could not fetch current price for {asset}. No action taken.")
+            print(f"Could not fetch current price for {asset}. Skipping square-off.")
             return
 
         # Calculate the notional value
@@ -231,33 +237,38 @@ def square_off_position(asset, total_amount):
             adjusted_amount = round(min_notional / current_price, amount_precision)
             if adjusted_amount <= available_balance:
                 print(
-                    f"Adjusting sell amount for {asset} to meet minimum notional value: "
-                    f"Requested={total_amount}, Adjusted={adjusted_amount}"
+                    f"Adjusting sell amount for {asset} to meet minimum notional value: Requested={total_amount}, Adjusted={adjusted_amount}"
                 )
-                total_amount = adjusted_amount
+                total_amount_rounded = adjusted_amount
             else:
                 print(
                     f"Cannot adjust sell amount for {asset}. Insufficient balance. "
-                    f"Available={available_balance}, Required for Min Notional={adjusted_amount}"
+                    f"Available={available_balance}, Required={adjusted_amount}."
                 )
                 return
 
-        # Create a limit sell order slightly below the current price (0.5% below)
+        # Create a limit sell order slightly below the current price (e.g., 0.5% below)
         limit_price = round(current_price * 0.995, price_precision)
 
-        # Check the adjusted notional value before placing the order
-        if total_amount * limit_price >= min_notional:
+        # Check the adjusted notional value again before placing the order
+        adjusted_notional_value = total_amount_rounded * limit_price
+        if adjusted_notional_value >= min_notional:
             print(
-                f"Placing limit sell order for {asset}: Amount={total_amount}, Price={limit_price}"
+                f"Placing limit sell order for {asset}: "
+                f"Amount={total_amount}, Price={limit_price}, Available Balance ={available_balance}"
             )
-            order = exchange.create_limit_sell_order(
-                asset + "/USDT", total_amount, limit_price
+            # order = exchange.create_limit_sell_order(
+            #     asset + "/USDT", total_amount, limit_price
+            # )
+
+            order = exchange.create_market_sell_order(
+                asset + "/USDT", available_balance
             )
             print(f"Square-off order placed for {asset}: {order}")
         else:
             print(
                 f"Adjusted order notional value still too low for {asset}: "
-                f"{total_amount * limit_price} < {min_notional}. No action taken."
+                f"{adjusted_notional_value} < {min_notional}. No action taken."
             )
 
     except ccxt.InsufficientFunds as e:
@@ -338,14 +349,14 @@ def check_and_square_off_positions():
 # Updated main function
 def main():
     # Existing logic
-    filteredCryptos = getTopCryptosFromWeb()
-    df = pd.DataFrame(filteredCryptos)
-    print(df)
-    newDf = addTwentyDmaData(df)
-    print(newDf)
-    newDf.to_csv("all-crypto.csv")
-    result = findTradableEtf(newDf)
-    print(result)
+    # filteredCryptos = getTopCryptosFromWeb()
+    # df = pd.DataFrame(filteredCryptos)
+    # print(df)
+    # newDf = addTwentyDmaData(df)
+    # print(newDf)
+    # newDf.to_csv("all-crypto.csv")
+    # result = findTradableEtf(newDf)
+    # print(result)
 
     try:
         check_and_square_off_positions()
