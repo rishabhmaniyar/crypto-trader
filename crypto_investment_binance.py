@@ -346,6 +346,39 @@ def check_and_square_off_positions():
                 print(f"Could not fetch current price for {asset}\n")
 
 
+def process_top_tickers(result, max_attempts=5, amount=500):
+    """
+    Process top tickers and attempt to place a buy order.
+    If the first ticker fails, try the next max_attempts tickers.
+
+    Args:
+        result (DataFrame): DataFrame containing ticker data.
+        max_attempts (int): Maximum number of tickers to attempt.
+        amount (float): Amount to use for placing buy orders.
+    """
+    try:
+        # Try the first ticker
+        ticker = result.head(1)['ticker'].values[0]
+        order = place_buy_order(ticker, amount)
+        print(f"Order placed successfully for {ticker}: {order}")
+    except Exception as e:
+        print(f"Error processing the top ticker: {e}")
+        print(f"Trying the next {max_attempts - 1} tickers...")
+
+        # Loop through the next top tickers
+        for i, row in result.head(max_attempts).iterrows():
+            try:
+                ticker = row['ticker']
+                print(f"Attempting to place buy order for {ticker}...")
+                order = place_buy_order(ticker, amount)
+                print(f"Order placed successfully for {ticker}: {order}")
+                break
+            except Exception as e:
+                print(f"Error placing order for {ticker}: {e}")
+        else:
+            print("Failed to place an order for any of the top tickers.")
+
+
 # Updated main function
 def main():
     # Existing logic
@@ -364,7 +397,7 @@ def main():
         print("Something went wrong while selling due to --", e)
 
     amount = 500
-    order = place_buy_order(result.head(1)['ticker'].values[0], amount)
+    order = process_top_tickers(result, 5, amount)
     print(order)
 
 
