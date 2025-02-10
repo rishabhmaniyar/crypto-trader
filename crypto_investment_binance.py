@@ -1,3 +1,4 @@
+import math
 import ssl
 import traceback
 
@@ -9,6 +10,9 @@ import asyncio
 import websockets
 import json
 from datetime import datetime, timedelta
+import time
+import traceback
+
 
 # Binance API credentials
 API_KEY = 'jbzSqtPRcAk8CPb4u142bN6lBwu47cqLxFxzwVmJ086FaoWvjHW0gmWQzajjYFlc'
@@ -202,79 +206,217 @@ def calculate_returns(open_positions):
 
 
 # Square off positions with returns greater than 15%
-def square_off_position(asset, total_amount):
+# def square_off_position(asset, total_amount):
+#     try:
+#         # Fetch the latest balance for the asset
+#         balance = exchange.fetch_balance()
+#         available_balance = balance['free'].get(asset, 0)
+#
+#         if available_balance <= 0:
+#             print(f"No available balance for {asset}. Skipping square-off.")
+#             return
+#
+#         # Load market data for precision and limits
+#         markets = exchange.load_markets()
+#         market_data = markets[asset + "/USDT"]
+#         amount_precision = int(market_data['precision']['amount'])
+#         price_precision = int(market_data['precision']['price'])
+#         min_notional = float(market_data['limits']['cost']['min'])
+#
+#         # Use the smaller of total_amount and available_balance
+#         total_amount = min(total_amount, available_balance)
+#         total_amount_rounded = round(total_amount, amount_precision)
+#
+#         # Fetch the current price
+#         current_price = fetch_current_price(asset + "/USDT")
+#         if not current_price:
+#             print(f"Could not fetch current price for {asset}. Skipping square-off.")
+#             return
+#
+#         # Calculate the notional value
+#         notional_value = current_price * total_amount_rounded
+#
+#         # Create a limit sell order slightly below the current price (e.g., 0.5% below)
+#         limit_price = round(current_price * 0.995, price_precision)
+#
+#         if notional_value < min_notional:
+#             print(f"Order value ({notional_value}) is below minimum notional ({min_notional})")
+#             # Calculate minimum amount needed
+#             min_amount = math.ceil((min_notional / current_price) * 10 ** amount_precision) / 10 ** amount_precision
+#
+#             if min_amount <= available_balance:
+#                 total_amount_rounded = min_amount
+#                 print(f"Adjusted amount to meet minimum notional: {total_amount_rounded}")
+#             else:
+#                 print(f"Insufficient balance to meet minimum notional requirement")
+#                 return
+#
+#         try:
+#             print(
+#                 f"Placing limit sell order for {asset}: "
+#                 f"Amount={total_amount_rounded}, Price={limit_price}, Available Balance={available_balance}"
+#             )
+#             order = exchange.create_limit_sell_order(
+#                 asset + "/USDT", total_amount_rounded, limit_price
+#             )
+#             print(f"Square-off order placed for {asset}: {order}")
+#
+#         except ccxt.InsufficientFunds as e:
+#             print(f"Insufficient funds for {asset}: {e}")
+#             return
+#
+#     except Exception as e:
+#         print(f"Error squaring off position for {asset}: {str(e)}")
+#         traceback.print_exc()
+
+def get_funding_wallet_balance(asset) -> float:
+    """Fetch available balance of an asset in the Funding Wallet.
+
+    Args:
+        exchange: Initialized CCXT Binance exchange instance
+        asset: Asset symbol (e.g., 'BTC', 'ETH')
+
+    Returns:
+        float: Available balance of the asset
+    """
     try:
-        # Fetch the latest balance for the asset
+        # Using the correct endpoint for funding wallet
+        response = exchange.fetch_balance({'type': 'funding'})
+
+        if asset in response['total']:
+            return float(response['free'].get(asset, 0))
+        return 0
+
+    except Exception as e:
+        print(f"❌ Error fetching {asset} balance from Funding Wallet: {e}")
+        return 0
+
+def transfer_to_funding(asset, amount):
+    """ Transfers asset from Spot Wallet to Funding Wallet. """
+    try:
+        response = exchange.sapi_post_asset_transfer({
+            "type": "MAIN_FUNDING",  # Spot → Funding
+            "asset": asset,
+            "amount": amount
+        })
+        print(f"✅ Transferred {amount} {asset} to Funding Wallet: {response}")
+        return True
+    except Exception as e:
+        print(f"❌ Error transferring {asset} to Funding Wallet: {e}")
+        return False
+
+def transfer_to_spot(asset, amount):
+    """ Transfers asset from Funding Wallet back to Spot Wallet. """
+    try:
+        response = exchange.sapi_post_asset_transfer({
+            "type": "FUNDING_MAIN",  # Funding → Spot
+            "asset": asset,
+            "amount": amount
+        })
+        print(f"✅ Transferred {amount} {asset} back to Spot Wallet: {response}")
+        return True
+    except Exception as e:
+        print(f"❌ Error transferring {asset} back to Spot Wallet: {e}")
+        return False
+
+def get_funding_wallet_balance(asset):
+    """Fetch available balance of an asset in the Funding Wallet."""
+    try:
+        # Use correct CCXT function to get funding wallet balance
+        response = exchange.sapiPostAssetGetFundingAsset(params={"asset": asset})
+
+        if isinstance(response, list):  # Binance returns a list
+            for balance in response:
+                if balance['asset'] == asset:
+                    return float(balance['free'])
+
+        return 0
+    except Exception as e:
+        print(f"❌ Error fetching {asset} balance from Funding Wallet: {e}")
+        return 0
+
+
+def convert_asset_to_usdt(asset):
+    """Converts the full balance of an asset in the Funding Wallet to USDT using Binance Convert API."""
+    try:
+        asset_balance = get_funding_wallet_balance(asset)
+        if asset_balance <= 0:
+            print(f"❌ No available {asset} balance in Funding Wallet for conversion.")
+            return 0
+
+        print(f"🔄 Requesting conversion quote for {asset_balance} {asset} to USDT...")
+
+        # Step 1: Get Quote for conversion
+        quote_params = {
+            "fromAsset": asset,
+            "toAsset": "USDT",
+            "fromAmount": asset_balance,
+            "walletType": "FUNDING"
+        }
+
+        quote_response = exchange.sapiPostConvertGetQuote(quote_params)
+
+        if "quoteId" not in quote_response:
+            print(f"❌ Failed to get quote: {quote_response}")
+            return 0
+
+        quote_id = quote_response["quoteId"]
+        print(f"✅ Quote received: {quote_response}")
+
+        time.sleep(2)  # Wait before executing
+
+        # Step 2: Accept the quote and convert
+        accept_params = {"quoteId": quote_id}
+        conversion_response = exchange.sapiPostConvertAcceptQuote(accept_params)
+
+        print(f"✅ Conversion successful: {conversion_response}")
+
+        time.sleep(2)  # Wait for conversion to finalize
+
+        # Step 3: Fetch final USDT balance
+        final_balance = get_funding_wallet_balance("USDT")
+        print(f"💰 Final USDT balance after conversion: {final_balance}")
+        return final_balance
+
+    except Exception as e:
+        print(f"❌ Error converting {asset} to USDT: {e}")
+        return 0
+
+def square_off_position(asset):
+    """ Squares off the position by transferring to funding, converting to USDT, and moving USDT back to Spot. """
+    try:
+        # Fetch balance from Spot Wallet
         balance = exchange.fetch_balance()
         available_balance = balance['free'].get(asset, 0)
 
         if available_balance <= 0:
-            print(f"No available balance for {asset}. Skipping square-off.")
+            print(f"❌ No available balance for {asset}. Skipping square-off.")
             return
 
-        # Load market data for precision and limits
-        markets = exchange.load_markets()
-        market_data = markets[asset + "/USDT"]
-        amount_precision = int(market_data['precision']['amount'])
-        price_precision = int(market_data['precision']['price'])
-        min_notional = float(market_data['limits']['cost']['min'])
+        print(f"🔄 Initiating transfer of {available_balance} {asset} from Spot to Funding Wallet...")
 
-        # Use the smaller of total_amount and available_balance
-        total_amount = min(total_amount, available_balance)
-        total_amount_rounded = round(total_amount, amount_precision)
-
-        # Fetch the current price
-        current_price = fetch_current_price(asset + "/USDT")
-        if not current_price:
-            print(f"Could not fetch current price for {asset}. Skipping square-off.")
+        # Step 1: Transfer asset from Spot to Funding Wallet
+        if not transfer_to_funding(asset, available_balance):
             return
 
-        # Calculate the notional value
-        notional_value = current_price * total_amount
+        time.sleep(5)
 
-        # Ensure the notional value meets the minimum requirement
-        if notional_value < min_notional:
-            adjusted_amount = round(min_notional / current_price, amount_precision)
-            if adjusted_amount <= available_balance:
-                print(
-                    f"Adjusting sell amount for {asset} to meet minimum notional value: Requested={total_amount}, Adjusted={adjusted_amount}"
-                )
-                total_amount_rounded = adjusted_amount
-            else:
-                print(
-                    f"Cannot adjust sell amount for {asset}. Insufficient balance. "
-                    f"Available={available_balance}, Required={adjusted_amount}."
-                )
-                return
+        # Step 2: Convert asset to USDT in Funding Wallet
+        usdt_available = convert_asset_to_usdt(asset)
 
-        # Create a limit sell order slightly below the current price (e.g., 0.5% below)
-        limit_price = round(current_price * 0.995, price_precision)
+        if usdt_available <= 0:
+            print("❌ No USDT available after conversion. Skipping transfer back to Spot.")
+            return
 
-        # Check the adjusted notional value again before placing the order
-        adjusted_notional_value = total_amount_rounded * limit_price
-        if adjusted_notional_value >= min_notional:
-            print(
-                f"Placing limit sell order for {asset}: "
-                f"Amount={total_amount}, Price={limit_price}, Available Balance ={available_balance}"
-            )
-            # order = exchange.create_limit_sell_order(
-            #     asset + "/USDT", total_amount, limit_price
-            # )
+        print(f"🔄 Transferring {usdt_available} USDT back to Spot Wallet...")
 
-            order = exchange.create_market_sell_order(
-                asset + "/USDT", available_balance
-            )
-            print(f"Square-off order placed for {asset}: {order}")
-        else:
-            print(
-                f"Adjusted order notional value still too low for {asset}: "
-                f"{adjusted_notional_value} < {min_notional}. No action taken."
-            )
+        # Step 3: Transfer USDT back to Spot Wallet
+        transfer_to_spot("USDT", usdt_available)
 
-    except ccxt.InsufficientFunds as e:
-        print(f"Insufficient funds for {asset}: {e}")
+        print(f"✅ Square-off complete for {asset}. Funds are now in Spot Wallet.")
+
     except Exception as e:
-        print(f"Error squaring off position for {asset}: {e}")
+        print(f"❌ Error squaring off position for {asset}: {e}")
         traceback.print_exc()
 
 
@@ -336,8 +478,8 @@ def check_and_square_off_positions():
 
                     # Square off if returns > 5%
                     if result['returns_percentage'] > 5:
-                        print(f"Square-off triggered for {asset}")
-                        square_off_position(asset, result['total_amount'])
+                        print(f"Square-off triggered for {asset} amount {result['total_amount']}")
+                        square_off_position(asset)
                     else:
                         print(f"Returns for {asset} are below 15%. No action taken.\n")
                 else:
@@ -396,7 +538,7 @@ def main():
     except Exception as e:
         print("Something went wrong while selling due to --", e)
 
-    amount = 500
+    amount = 600
     order = process_top_tickers(result, 5, amount)
     print(order)
 
