@@ -47,20 +47,20 @@ def calculate_ema(df):
 
 
 # Place a buy order
-def place_buy_order(symbolTop, inr_amount=500):
+def place_buy_order(symbolTop, usdt_amount=6):
     # Fetch the current price of the symbol
     print("place_buy_order :- ", symbolTop)
     ticker = exchange.fetch_ticker(symbolTop)
     current_price = ticker['last']
 
     # Calculate the amount to buy so that the total cost is near ₹500
-    amount_to_buy = inr_amount / (current_price * 83)
+    # amount_to_buy = inr_amount / (current_price * 83)
 
     print(f"Buy Order placed for {symbolTop}")
-    print(f"Amount: {amount_to_buy}, Total Cost: {amount_to_buy * current_price} INR")
+    print(f"Amount: {usdt_amount}, Total Cost: {usdt_amount * current_price} USDT")
 
     # Place a market buy order with the calculated amount
-    order = exchange.create_market_buy_order(symbolTop, amount_to_buy)
+    order = exchange.create_market_buy_order(symbolTop, usdt_amount)
     print("ORDER -> ", order)
     return order
 
@@ -488,7 +488,7 @@ def check_and_square_off_positions():
                 print(f"Could not fetch current price for {asset}\n")
 
 
-def process_top_tickers(result, max_attempts=5, amount=500):
+def process_top_tickers(result, max_attempts=5, amount=6):
     """
     Process top tickers and attempt to place a buy order.
     If the first ticker fails, try the next max_attempts tickers.
@@ -538,7 +538,7 @@ def main():
     except Exception as e:
         print("Something went wrong while selling due to --", e)
 
-    amount = 600
+    amount = 6
     order = process_top_tickers(result, 5, amount)
     print(order)
 
