@@ -55,9 +55,10 @@ def place_buy_order(symbolTop, usdt_amount=6):
 
     # Calculate the amount to buy so that the total cost is near ₹500
     # amount_to_buy = inr_amount / (current_price * 83)
+    amount_to_buy = usdt_amount / current_price
 
     print(f"Buy Order placed for {symbolTop}")
-    print(f"Amount: {usdt_amount}, Total Cost: {usdt_amount * current_price} USDT")
+    print(f"Amount: {usdt_amount}, Total Cost: {usdt_amount * amount_to_buy} USDT")
 
     # Place a market buy order with the calculated amount
     order = exchange.create_market_buy_order(symbolTop, usdt_amount)
